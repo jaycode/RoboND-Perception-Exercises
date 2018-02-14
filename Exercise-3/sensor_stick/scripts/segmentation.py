@@ -27,6 +27,13 @@ def pcl_callback(pcl_msg):
 
     cloud_filtered = passthrough.filter()
 
+    # Extract outliers
+    outlier_filter = cloud_filtered.make_statistical_outlier_filter()
+    outlier_filter.set_mean_k(50)
+    x = 1.0
+    outlier_filter.set_std_dev_mul_thresh(x)
+    cloud_filtered = outlier_filter.filter()
+    
     # TODO: RANSAC Plane Segmentation
     seg = cloud_filtered.make_segmenter()
     seg.set_model_type(pcl.SACMODEL_PLANE)
@@ -43,13 +50,6 @@ def pcl_callback(pcl_msg):
 
     # TODO: Euclidean Clustering
     white_cloud = XYZRGB_to_XYZ(cloud_objects)
-
-    # Extract outliers
-    outlier_filter = white_cloud.make_statistical_outlier_filter()
-    outlier_filter.set_mean_k(50)
-    x = 1.0
-    outlier_filter.set_std_dev_mul_thresh(x)
-    white_cloud = outlier_filter.filter()
 
     tree = white_cloud.make_kdtree()
 

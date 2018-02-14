@@ -38,11 +38,18 @@ def pcl_callback(pcl_msg):
     passthrough = cloud_filtered.make_passthrough_filter()
     filter_axis = 'z'
     passthrough.set_filter_field_name(filter_axis)
-    axis_min = 0.6
+    axis_min = 0.75
     axis_max = 1.1
     passthrough.set_filter_limits(axis_min, axis_max)
 
     cloud_filtered = passthrough.filter()
+
+    # Extract outliers
+    outlier_filter = cloud_filtered.make_statistical_outlier_filter()
+    outlier_filter.set_mean_k(40)
+    x = 1.0
+    outlier_filter.set_std_dev_mul_thresh(x)
+    cloud_filtered = outlier_filter.filter()
 
     # TODO: RANSAC Plane Segmentation
     seg = cloud_filtered.make_segmenter()
@@ -61,18 +68,11 @@ def pcl_callback(pcl_msg):
     # TODO: Euclidean Clustering
     white_cloud = XYZRGB_to_XYZ(cloud_objects)
 
-    # Extract outliers
-    outlier_filter = white_cloud.make_statistical_outlier_filter()
-    outlier_filter.set_mean_k(50)
-    x = 1.0
-    outlier_filter.set_std_dev_mul_thresh(x)
-    white_cloud = outlier_filter.filter()
-
     tree = white_cloud.make_kdtree()
 
     ec = white_cloud.make_EuclideanClusterExtraction()
     ec.set_ClusterTolerance(0.05)
-    ec.set_MinClusterSize(10)
+    ec.set_MinClusterSize(50)
     ec.set_MaxClusterSize(1500)
     ec.set_SearchMethod(tree)
     cluster_indices = ec.Extract()
@@ -96,9 +96,11 @@ def pcl_callback(pcl_msg):
     cluster_cloud.from_list(color_cluster_point_list)
 
     # TODO: Convert PCL data to ROS messages
-    ros_cloud_objects = pcl_to_ros(cloud_objects)
-    ros_cloud_table = pcl_to_ros(cloud_table)
+    # ros_cloud_objects = pcl_to_ros(cloud_objects)
+    # ros_cloud_table = pcl_to_ros(cloud_table)
     ros_cluster_cloud = pcl_to_ros(cluster_cloud)
+
+    pcl_cluster_pub.publish(ros_cluster_cloud)
 
 # Exercise-3 TODOs: 
 
@@ -154,7 +156,8 @@ if __name__ == '__main__':
                                          queue_size=1)
     detected_objects_pub = rospy.Publisher("/detected_objects", DetectedObjectsArray,
                                            queue_size=1)
-
+    pcl_cluster_pub = rospy.Publisher("/pcl_cluster", PointCloud2,
+                                    queue_size=1)
     # TODO: Load Model From disk
     model = pickle.load(open('model.sav', 'rb'))
     clf = model['classifier']
